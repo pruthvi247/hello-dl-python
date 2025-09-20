@@ -1,0 +1,9 @@
+# PyTensorLib Requirements
+# Core dependencies for the deep learning framework
+
+# NumPy - Essential for numerical computations
+numpy>=1.18.0
+
+# Optional development dependencies (install with: pip install -e .[dev])
+# pytest>=6.0
+# pytest-cov>=2.10
