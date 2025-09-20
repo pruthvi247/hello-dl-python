@@ -22,10 +22,18 @@ PyTensorLib is a lightweight deep learning framework implemented in pure Python 
 ### Installation
 
 1. **Clone and set up the environment:**
+   ✅ Complete setup - Handles everything automatically ✅ Virtual environment - Keeps dependencies isolated
+   ✅ Testing - Verifies everything works ✅ Instructions - Tells you exactly what to do next ✅ Beginner-friendly - Guided process with clear output
+
+Use setup.py only if:
+
+You're already in a virtual environment
+You want to install without the guided setup
+You're packaging for distribution
 
 ```bash
 git clone <repository-url>
-cd python-tensor-lib
+cd hello-dl-python
 python setup_environment.py
 ```
 

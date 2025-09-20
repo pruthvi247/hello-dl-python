@@ -1,0 +1,32 @@
+
+🚀 PyTensorLib Setup Complete!
+
+To activate the virtual environment and start using PyTensorLib:
+
+Unix/macOS:
+    source pytensor-env/bin/activate
+
+Once activated, you can:
+
+1. Import the library:
+   python -c "import pytensorlib; print(pytensorlib.__version__)"
+
+2. Run the quick test:
+   python -c "from pytensorlib import quick_test; quick_test()"
+
+3. Run individual tests:
+   cd tests
+   python test_tensor_lib.py
+   python test_mnist_utils.py
+
+4. Start coding with PyTensorLib:
+   python
+   >>> from pytensorlib import Tensor, relu, sigmoid
+   >>> x = Tensor([[1, 2], [3, 4]])
+   >>> y = relu(x)
+   >>> print(y)
+
+To deactivate the environment:
+    deactivate
+
+Happy deep learning! 🧠✨
