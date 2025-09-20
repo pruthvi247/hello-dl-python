@@ -142,7 +142,6 @@ data/
 *.sqlite3
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
