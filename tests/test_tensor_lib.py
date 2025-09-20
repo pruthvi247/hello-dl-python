@@ -13,8 +13,8 @@ import unittest
 
 # Import from the installed package
 from pytensorlib import (
-    Tensor, TensorImpl, relu, sigmoid, tanh, gelu, 
-    mse_loss, cross_entropy_loss
+    Tensor, TensorImpl, relu, sigmoid, tanh, gelu, square,
+    make_flatten, make_log_softmax, mse_loss, cross_entropy_loss
 )
 
 
