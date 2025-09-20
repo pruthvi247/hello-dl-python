@@ -612,10 +612,46 @@ def square(tensor: Tensor) -> Tensor:
     return make_function(tensor, ActivationFunctions.Square)
 
 
+# Loss functions
+def mse_loss(predictions: Tensor, targets: Tensor) -> Tensor:
+    """
+    Mean Squared Error loss function
+    
+    Args:
+        predictions: Predicted values tensor
+        targets: Target values tensor
+        
+    Returns:
+        Scalar tensor containing the MSE loss
+    """
+    diff = predictions - targets
+    squared_diff = square(diff)
+    return squared_diff.sum()
+
+
+def cross_entropy_loss(predictions: Tensor, targets: Tensor) -> Tensor:
+    """
+    Cross Entropy loss function
+    
+    Args:
+        predictions: Predicted probabilities tensor (typically output of softmax)
+        targets: Target values tensor (one-hot encoded or class indices)
+        
+    Returns:
+        Scalar tensor containing the cross-entropy loss
+    """
+    # Apply log softmax to predictions for numerical stability
+    log_predictions = make_log_softmax(predictions)
+    
+    # Compute cross-entropy: -sum(targets * log_predictions)
+    product = targets * log_predictions
+    return -product.sum()
+
+
 # Export all public functions and classes
 __all__ = [
     'Tensor', 'TensorImpl', 'TMode', 'ActivationFunctions',
     'make_function', 'make_log_softmax', 'make_flatten',
-    'relu', 'gelu', 'sigmoid', 'tanh', 'square',
+    'relu', 'gelu', 'sigmoid', 'tanh', 'square', 'mse_loss', 'cross_entropy_loss',
     '__version__', 'VERSION_INFO'
 ]

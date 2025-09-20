@@ -461,4 +461,17 @@ If you encounter any issues or have questions:
 
 ---
 
+### To install pytensorlib as library
+
+```sh
+/Users/I562107/Documents/workspace/open_source/temp/hello-dl-python/pytensor-env/bin/python -m pip install -e .
+
+```
+
+If Go to Definition still doesn't work, run this sequence:
+
+Cmd+Shift+P → "Python: Select Interpreter" → Choose the pytensor-env interpreter
+Cmd+Shift+P → "Python: Restart Language Server"
+Cmd+Shift+P → "Developer: Reload Window"
+
 **Happy deep learning with PyTensorLib! 🚀🧠**

@@ -46,7 +46,7 @@ Version: 1.0.0
 from .tensor_lib import (
     Tensor, TensorImpl, TMode, ActivationFunctions,
     make_function, make_log_softmax, make_flatten,
-    relu, gelu, sigmoid, tanh, square,
+    relu, gelu, sigmoid, tanh, square, mse_loss, cross_entropy_loss,
     __version__ as tensor_version, VERSION_INFO
 )
 
@@ -79,6 +79,9 @@ __all__ = [
     
     # Activation functions
     'relu', 'gelu', 'sigmoid', 'tanh', 'square',
+    
+    # Loss functions
+    'mse_loss', 'cross_entropy_loss',
     
     # MNIST utilities
     'MNISTReader', 'download_mnist', 'download_emnist', 'create_synthetic_mnist_data',

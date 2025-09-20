@@ -1,0 +1,26 @@
+[tool.pylance]
+autoSearchPaths = true
+extraPaths = ["src"]
+
+[tool.python]
+pythonPath = "pytensor-env/bin/python"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytensorlib"
+version = "1.0.0"
+description = "Python Deep Learning Tensor Library with Automatic Differentiation"
+authors = [{name = "Python Tensor Library Team"}]
+dependencies = ["numpy>=1.18.0"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -94,18 +94,26 @@ def compute_average_images(images, labels):
         
         if label == 3:
             three_count += 1
-            threes.impl.val += img_tensor.impl.val
+            if img_tensor.impl.val is not None:
+                if threes.impl.val is None:
+                    threes.impl.val = img_tensor.impl.val.copy()
+                else:
+                    threes.impl.val += img_tensor.impl.val
         elif label == 7:
             seven_count += 1
-            sevens.impl.val += img_tensor.impl.val
+            if img_tensor.impl.val is not None:
+                if sevens.impl.val is None:
+                    sevens.impl.val = img_tensor.impl.val.copy()
+                else:
+                    sevens.impl.val += img_tensor.impl.val
     
     print(f"   Found {three_count} threes and {seven_count} sevens")
     
     # Normalize by count
-    if three_count > 0:
-        threes.impl.val /= three_count
-    if seven_count > 0:
-        sevens.impl.val /= seven_count
+    if three_count > 0 and threes.impl.val is not None:
+        threes.impl.val = np.divide(threes.impl.val, three_count)
+    if seven_count > 0 and sevens.impl.val is not None:
+        sevens.impl.val = np.divide(sevens.impl.val, seven_count)
     
     return threes, sevens, three_count, seven_count
 
@@ -131,7 +139,10 @@ def compute_decision_boundary(threes, sevens, train_images, train_labels):
         # Compute score: dot product of image with delta
         score_tensor = img_tensor.dot(delta).sum()
         score_tensor.impl.assure_value()
-        score = score_tensor.impl.val[0, 0]
+        if score_tensor.impl.val is not None:
+            score = score_tensor.impl.val[0, 0]
+        else:
+            score = 0.0
         
         if label == 3:
             three_scores.append(score)
@@ -178,7 +189,10 @@ def evaluate_classifier(delta, bias, test_images, test_labels):
         # Compute classification score
         score_tensor = img_tensor.dot(delta).sum()
         score_tensor.impl.assure_value()
-        score = score_tensor.impl.val[0, 0] + bias
+        if score_tensor.impl.val is not None:
+            score = score_tensor.impl.val[0, 0] + bias
+        else:
+            score = bias
         
         # Make prediction: positive score = 7, negative score = 3
         predicted_label = 7 if score > 0 else 3
