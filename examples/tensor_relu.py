@@ -93,6 +93,9 @@ class SimpleNeuralNetwork:
     
     def save_state(self, filepath: str):
         """Save model parameters"""
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
         state = {}
         for i, param in enumerate(self.get_parameters()):
             if param.impl.val is not None:
@@ -313,12 +316,13 @@ def evaluate_model(model: SimpleNeuralNetwork, test_reader: MNISTReader, max_sam
 
 
 def train_simple_model(model: SimpleNeuralNetwork, train_reader: MNISTReader, 
-                      test_reader: MNISTReader, epochs: int = 5):
+                      test_reader: MNISTReader, models_dir: str, logs_dir: str, epochs: int = 5):
     """Simple training loop (limited by current tensor operations)"""
     print("🚀 Starting simplified training...")
     print("Note: This uses a simplified training approach due to current tensor operation limitations")
     
-    logger = TrainingLogger("tensor_relu_results.sqlite3")
+    db_path = os.path.join(logs_dir, "tensor_relu_results.sqlite3")
+    logger = TrainingLogger(db_path)
     
     try:
         for epoch in range(epochs):
@@ -393,7 +397,8 @@ def train_simple_model(model: SimpleNeuralNetwork, train_reader: MNISTReader,
             logger.log_validation(epoch, epoch_avg_loss, val_accuracy)
             
             # Save model
-            model.save_state(f"relu_model_epoch_{epoch + 1}.json")
+            model_path = os.path.join(models_dir, f"relu_model_epoch_{epoch + 1}.json")
+            model.save_state(model_path)
     
     finally:
         logger.close()
@@ -407,6 +412,24 @@ def main():
     print("for classifying handwritten digits using PyTensorLib.")
     print("Uses real MNIST/EMNIST data only - no synthetic data.")
     print("=" * 55)
+    
+    # Create unified output directory structure for all experiments
+    base_results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results")
+    output_dir = os.path.join(base_results_dir, "tensor_relu")
+    
+    # Create subdirectories for organized storage
+    models_dir = os.path.join(output_dir, "models")
+    logs_dir = os.path.join(output_dir, "logs")
+    evaluations_dir = os.path.join(output_dir, "evaluations")
+    
+    for dir_path in [base_results_dir, output_dir, models_dir, logs_dir, evaluations_dir]:
+        os.makedirs(dir_path, exist_ok=True)
+    
+    print(f"\n📁 Output directory structure:")
+    print(f"   Base: {os.path.abspath(base_results_dir)}")
+    print(f"   Project: {os.path.relpath(output_dir, base_results_dir)}")
+    print(f"   Subdirectories: models/, logs/, evaluations/")
+    print(f"   All generated files will be organized in these folders.")
     
     try:
         # Load data
@@ -425,6 +448,12 @@ def main():
         # Check if we should load a saved model
         if len(sys.argv) > 1:
             model_path = sys.argv[1]
+            # If it's just a filename, look in models directory first
+            if not os.path.isabs(model_path) and not os.path.exists(model_path):
+                models_model_path = os.path.join(models_dir, model_path)
+                if os.path.exists(models_model_path):
+                    model_path = models_model_path
+            
             if os.path.exists(model_path):
                 model.load_state(model_path)
             else:
@@ -445,7 +474,7 @@ def main():
         # Simple training demonstration
         response = input("\nRun simplified training demo? (y/n): ").strip().lower()
         if response == 'y':
-            train_simple_model(model, train_reader, test_reader, epochs=3)
+            train_simple_model(model, train_reader, test_reader, models_dir, logs_dir, epochs=3)
         
         # Final evaluation
         print("\n🏁 Final evaluation:")
@@ -457,11 +486,16 @@ def main():
         print(f"   Data type: {data_type.upper()}")
         
         # Save final model
-        model.save_state("relu_model_final.json")
+        final_model_path = os.path.join(models_dir, "relu_model_final.json")
+        model.save_state(final_model_path)
         
         print("\n🎉 Program completed successfully!")
-        print("💾 Results saved to: relu_model_final.json")
-        print("📊 Training logs saved to: tensor_relu_results.sqlite3")
+        print(f"💾 Results saved to organized directory structure:")
+        print(f"   Base directory: {os.path.relpath(base_results_dir, os.getcwd())}")
+        print(f"   Models: {os.path.relpath(models_dir, base_results_dir)}/relu_model_final.json")
+        print(f"   Logs: {os.path.relpath(logs_dir, base_results_dir)}/tensor_relu_results.sqlite3")
+        print(f"   Evaluations: {os.path.relpath(evaluations_dir, base_results_dir)}/ (for future use)")
+        print(f"   Epoch checkpoints: {os.path.relpath(models_dir, base_results_dir)}/relu_model_epoch_*.json")
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
