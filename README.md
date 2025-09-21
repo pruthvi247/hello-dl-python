@@ -474,4 +474,10 @@ Cmd+Shift+P → "Python: Select Interpreter" → Choose the pytensor-env interpr
 Cmd+Shift+P → "Python: Restart Language Server"
 Cmd+Shift+P → "Developer: Reload Window"
 
+### Command to run specific test case
+
+```sh
+/python -m pytest tests/test_mnist_utils_documentation_examples.py::TestMNISTUtilsDocumentationExamples::test_convert_all_images_method -v -s
+```
+
 **Happy deep learning with PyTensorLib! 🚀🧠**

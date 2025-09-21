@@ -62,6 +62,8 @@ class SimpleNeuralNetwork:
         self.bias.impl.assure_value()
         
         # Manual matrix multiplication: weights.T @ x + bias
+        if self.weights.impl.val is None or x.impl.val is None or self.bias.impl.val is None:
+            raise ValueError("Tensor values must be initialized before performing operations.")
         result = self.weights.impl.val.T @ x.impl.val + self.bias.impl.val
         output.impl.val = result
         
@@ -93,7 +95,10 @@ class SimpleNeuralNetwork:
         """Save model parameters"""
         state = {}
         for i, param in enumerate(self.get_parameters()):
-            state[f"param_{i}"] = param.impl.val.tolist()
+            if param.impl.val is not None:
+                state[f"param_{i}"] = param.impl.val.tolist()
+            else:
+                raise ValueError(f"Parameter {i} has no value initialized.")
         
         with open(filepath, 'w') as f:
             json.dump(state, f, indent=2)
@@ -242,7 +247,7 @@ def load_data():
     return train_reader, test_reader, data_type
 
 
-def print_sample_image(image_array: np.ndarray, label: int, prediction: int = None):
+def print_sample_image(image_array: np.ndarray, label: int, prediction: Optional[int] = None):
     """Print image as ASCII art"""
     print(f"Label: {label}" + (f", Predicted: {prediction}" if prediction is not None else ""))
     print("ASCII representation (■ = high intensity, □ = low intensity):")
@@ -283,11 +288,19 @@ def evaluate_model(model: SimpleNeuralNetwork, test_reader: MNISTReader, max_sam
         
         # Forward pass
         output = model.forward(x)
-        predicted_label = np.argmax(output.impl.val)
+        if output.impl.val is None:
+            raise ValueError("Output tensor value is not initialized.")
+        if output.impl.val is None:
+            raise ValueError("Output tensor value is not initialized.")
+        if output.impl.val is None:
+            raise ValueError("Output tensor value is not initialized.")
+        if output.impl.val is None:
+            raise ValueError("Output tensor value is not initialized.")
+        predicted_label = np.argmax(np.array(output.impl.val))
         
         # Show first sample
         if not sample_shown:
-            print_sample_image(image_array, true_label, predicted_label)
+            print_sample_image(image_array, true_label, predicted_label) # pyright: ignore[reportArgumentType]
             sample_shown = True
         
         if predicted_label == true_label:
@@ -336,6 +349,8 @@ def train_simple_model(model: SimpleNeuralNetwork, train_reader: MNISTReader,
                     
                     # Forward pass
                     output = model.forward(x)
+                    if output.impl.val is None:
+                        raise ValueError("Output tensor value is not initialized.")
                     predicted_label = np.argmax(output.impl.val)
                     
                     # Create one-hot target
@@ -345,7 +360,7 @@ def train_simple_model(model: SimpleNeuralNetwork, train_reader: MNISTReader,
                     y_true.impl.val = target
                     
                     # Compute cross-entropy loss (simplified)
-                    loss = -np.log(output.impl.val[true_label, 0] + 1e-15)
+                    loss = -np.log(output.impl.val[true_label, 0] + 1e-15) # type: ignore
                     batch_loss += loss
                     
                     if predicted_label == true_label:

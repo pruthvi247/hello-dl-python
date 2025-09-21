@@ -5,6 +5,57 @@ This module provides utilities for reading and processing MNIST dataset files.
 It handles the IDX file format used by MNIST and provides convenient interfaces
 for loading images and labels.
 
+🔢 IDX FILE FORMAT & MAGIC NUMBERS:
+
+The IDX format is a simple file format for storing vectors and multidimensional 
+matrices used by the MNIST dataset. Each file begins with a magic number that 
+identifies the data type and dimensionality.
+
+MAGIC NUMBER STRUCTURE (4 bytes, big-endian):
+┌─────────┬─────────┬─────────┬─────────┐
+│ 0x00    │ 0x00    │ Type    │ Dims    │
+└─────────┴─────────┴─────────┴─────────┘
+
+Type Codes:
+- 0x08: unsigned byte (uint8)
+- 0x09: signed byte (int8)  
+- 0x0B: short (int16)
+- 0x0C: int (int32)
+- 0x0D: float (float32)
+- 0x0E: double (float64)
+
+Dimension Codes:
+- 0x01: 1D array (vector)
+- 0x02: 2D array (matrix)
+- 0x03: 3D array (tensor)
+
+MNIST SPECIFIC MAGIC NUMBERS:
+- 2049 (0x00000801): Labels file (1D array of uint8)
+- 2051 (0x00000803): Images file (3D array of uint8)
+
+FILE FORMAT EXAMPLES:
+
+Labels File (train-labels-idx1-ubyte):
+┌──────────────┬──────────────┬──────────────────┐
+│ Magic: 2049  │ Count: 60000 │ Data: 60000 bytes│
+│ (4 bytes)    │ (4 bytes)    │ (60000 bytes)     │
+└──────────────┴──────────────┴──────────────────┘
+
+Images File (train-images-idx3-ubyte):
+┌──────────────┬──────────────┬─────────┬─────────┬─────────────────────┐
+│ Magic: 2051  │ Count: 60000 │ Rows:28 │ Cols:28 │ Data: 47,040,000    │
+│ (4 bytes)    │ (4 bytes)    │(4 bytes)│(4 bytes)│ bytes (60000×28×28) │
+└──────────────┴──────────────┴─────────┴─────────┴─────────────────────┘
+
+BINARY LAYOUT EXAMPLE:
+Labels file header:
+[0x00][0x00][0x08][0x01][0x00][0x00][0xEA][0x60][label_data...]
+ ^--- Magic 2049 ---^    ^--- Count 60000 --^
+
+Images file header:  
+[0x00][0x00][0x08][0x03][0x00][0x00][0xEA][0x60][0x00][0x00][0x00][0x1C][0x00][0x00][0x00][0x1C][pixel_data...]
+ ^--- Magic 2051 ---^    ^--- Count 60000 --^    ^--- Rows 28 ---^     ^--- Cols 28 ---^
+
 The module is compatible with the tensor_lib module for deep learning applications.
 """
 
@@ -90,13 +141,27 @@ class MNISTReader:
         stores multidimensional arrays in a portable binary format with specific
         magic numbers for type identification and dimension information.
         
+        🔢 MAGIC NUMBERS EXPLAINED:
+        Magic numbers are 4-byte identifiers at the start of IDX files that specify:
+        - Data type (byte 3): 0x08 = unsigned byte (uint8)
+        - Dimensions (byte 4): 0x01 = 1D array, 0x03 = 3D array
+        
+        Magic Number Format: 0x00 00 [type] [dims]
+        - 2049 (0x00000801): IDX1 = 1D array of unsigned bytes (labels)
+        - 2051 (0x00000803): IDX3 = 3D array of unsigned bytes (images)
+        
         IDX Format Structure:
         - Labels (IDX1): [magic:4][count:4][data:count]
         - Images (IDX3): [magic:4][count:4][rows:4][cols:4][data:count*rows*cols]
         
-        Magic Numbers:
-        - 2049 (0x00000801): IDX1 format (1D array of unsigned bytes)
-        - 2051 (0x00000803): IDX3 format (3D array of unsigned bytes)
+        Binary Layout Example (Big-Endian):
+        Labels File:
+        [0x00 0x00 0x08 0x01][0x00 0x00 0xEA 0x60][label_data...]
+         ^-- Magic 2049      ^-- Count 60000      ^-- 60000 bytes
+        
+        Images File:
+        [0x00 0x00 0x08 0x03][0x00 0x00 0xEA 0x60][0x00 0x00 0x00 0x1C][0x00 0x00 0x00 0x1C][pixel_data...]
+         ^-- Magic 2051      ^-- Count 60000      ^-- Rows 28          ^-- Cols 28          ^-- 47M bytes
         
         Args:
             images_path (str): Path to compressed images file
@@ -116,9 +181,11 @@ class MNISTReader:
             >>> reader.rows               # Output: 28 (image height)
             >>> reader.cols               # Output: 28 (image width)
             
-            >>> # File format validation
+            >>> # Magic number validation examples
             >>> # If images file has wrong magic number:
-            >>> # ValueError: "Wrong magic number in images file: 1234"
+            >>> # ValueError: "Wrong magic number in images file: 1234 (expected 2051 for IDX3 format)"
+            >>> # If labels file has wrong magic number:
+            >>> # ValueError: "Wrong magic number in labels file: 5678 (expected 2049 for IDX1 format)"
             >>> # If label count != image count:
             >>> # ValueError: "Mismatch between number of labels and images"
             
@@ -127,15 +194,30 @@ class MNISTReader:
             >>> len(reader.labels)        # Output: 60000
             >>> reader.stride             # Output: 784 (pixels per image)
             >>> reader.converted          # Output: {} (will be filled by _convert_all_images)
+            
+            >>> # File format technical details
+            >>> import struct
+            >>> with gzip.open("train-labels.gz", 'rb') as f:
+            ...     magic_bytes = f.read(4)
+            ...     magic = struct.unpack('>I', magic_bytes)[0]
+            ...     print(f"Magic: {magic} (0x{magic:08X})")
+            >>> # Output: "Magic: 2049 (0x00000801)"
+            
+            >>> with gzip.open("train-images.gz", 'rb') as f:
+            ...     magic_bytes = f.read(4)
+            ...     magic = struct.unpack('>I', magic_bytes)[0]
+            ...     print(f"Magic: {magic} (0x{magic:08X})")
+            >>> # Output: "Magic: 2051 (0x00000803)"
         """
         
         # Load labels file
         with gzip.open(labels_path, 'rb') as f:
             # Read IDX1 header: magic number (4 bytes) + number of items (4 bytes)
+            # Magic number 2049 (0x00000801) = IDX1 format (1D unsigned byte array)
             magic, num_labels = struct.unpack('>II', f.read(8))
             
             if magic != 2049:
-                raise ValueError(f"Wrong magic number in labels file: {magic}")
+                raise ValueError(f"Wrong magic number in labels file: {magic} (expected 2049 for IDX1 format)")
             
             # Read all labels
             self.labels = list(f.read(num_labels))
@@ -143,10 +225,11 @@ class MNISTReader:
         # Load images file
         with gzip.open(images_path, 'rb') as f:
             # Read IDX3 header: magic (4) + num items (4) + rows (4) + cols (4)
+            # Magic number 2051 (0x00000803) = IDX3 format (3D unsigned byte array)
             magic, num_images, rows, cols = struct.unpack('>IIII', f.read(16))
             
             if magic != 2051:
-                raise ValueError(f"Wrong magic number in images file: {magic}")
+                raise ValueError(f"Wrong magic number in images file: {magic} (expected 2051 for IDX3 format)")
             
             if num_images != num_labels:
                 raise ValueError("Mismatch between number of labels and images")
@@ -578,13 +661,149 @@ class MNISTReader:
     
     def get_image_as_array(self, n: int) -> np.ndarray:
         """
-        Get image as a 28x28 numpy array
+        Get normalized image as a 28×28 numpy array
+        
+        🔄 HOW IT WORKS INTERNALLY:
+        
+        INPUT PROCESSING:
+        1. Takes image index n (integer from 0 to num_images-1)
+        2. Calls get_image_float(n) to retrieve normalized pixel data
+        3. get_image_float() returns a pre-computed 784-element list of floats (0.0-1.0)
+        
+        INTERNAL DATA TRANSFORMATION:
+        The method performs a critical memory layout conversion:
+        
+        Source Format (from get_image_float):
+        - 784-element flat list: [pixel_0, pixel_1, ..., pixel_783]
+        - Row-major order: pixel_i represents position (i//28, i%28)
+        - Example: pixel_56 is at row=2, col=0 (56//28=2, 56%28=0)
+        
+        Destination Format (28×28 numpy array):
+        - Column-major arrangement for tensor library compatibility
+        - array[row, col] = src[row + 28*col]
+        - This transforms: (row, col) → flat_index = row + 28*col
+        
+        CONVERSION ALGORITHM:
+        ```python
+        for row in range(28):      # 0 to 27
+            for col in range(28):  # 0 to 27
+                flat_index = row + 28 * col
+                image_2d[row, col] = src[flat_index]
+        ```
+        
+        MEMORY LAYOUT EXAMPLE:
+        For a 4×4 image (simplified):
+        
+        Row-major flat list: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        
+        Column-major 2D array:
+        [[ 0,  4,  8, 12],    # array[0,:] = src[0], src[4], src[8], src[12]
+         [ 1,  5,  9, 13],    # array[1,:] = src[1], src[5], src[9], src[13]
+         [ 2,  6, 10, 14],    # array[2,:] = src[2], src[6], src[10], src[14]
+         [ 3,  7, 11, 15]]    # array[3,:] = src[3], src[7], src[11], src[15]
+        
+        WHY COLUMN-MAJOR ORDER?
+        - Matches C++ tensor library memory layout
+        - Ensures data consistency between Python and C++ components
+        - Required for proper tensor operations and neural network computations
         
         Args:
-            n: Image index
+            n (int): Image index (0 to num_images-1)
             
         Returns:
-            28x28 numpy array containing the image
+            np.ndarray: 28×28 float32 array with normalized pixel values (0.0-1.0)
+            
+        Raises:
+            IndexError: If image index is out of range
+            
+        Sample Input/Output - Understanding the Mechanics:
+            >>> reader = MNISTReader("train-images.gz", "train-labels.gz")
+            >>> 
+            >>> # INPUT: Image index
+            >>> n = 0  # First image in dataset
+            >>> 
+            >>> # STEP 1: Get the flat normalized data
+            >>> flat_data = reader.get_image_float(0)
+            >>> type(flat_data)          # Output: <class 'list'>
+            >>> len(flat_data)           # Output: 784
+            >>> flat_data[0]             # Output: 0.0 (first pixel, normalized)
+            >>> flat_data[28]            # Output: 0.12 (start of row 1)
+            >>> flat_data[56]            # Output: 0.0 (start of row 2)
+            
+            >>> # STEP 2: Apply the transformation algorithm
+            >>> img_array = reader.get_image_as_array(0)
+            >>> 
+            >>> # OUTPUT: 28×28 numpy array
+            >>> type(img_array)          # Output: <class 'numpy.ndarray'>
+            >>> img_array.shape         # Output: (28, 28)
+            >>> img_array.dtype         # Output: dtype('float32')
+            
+            >>> # VERIFY THE TRANSFORMATION:
+            >>> # array[row,col] should equal flat_data[row + 28*col]
+            >>> row, col = 0, 0
+            >>> flat_index = row + 28 * col    # 0 + 28*0 = 0
+            >>> img_array[0, 0] == flat_data[0]  # Output: True
+            
+            >>> row, col = 1, 0  
+            >>> flat_index = row + 28 * col    # 1 + 28*0 = 1
+            >>> img_array[1, 0] == flat_data[1]  # Output: True
+            
+            >>> row, col = 0, 1
+            >>> flat_index = row + 28 * col    # 0 + 28*1 = 28  
+            >>> img_array[0, 1] == flat_data[28]  # Output: True
+            
+            >>> row, col = 14, 14
+            >>> flat_index = row + 28 * col    # 14 + 28*14 = 406
+            >>> img_array[14, 14] == flat_data[406]  # Output: True
+            
+            >>> # DEMONSTRATE THE CONVERSION PROCESS:
+            >>> def show_conversion_process(reader, img_idx):
+            ...     print(f"Converting image {img_idx}:")
+            ...     flat = reader.get_image_float(img_idx)
+            ...     array = reader.get_image_as_array(img_idx)
+            ...     
+            ...     print(f"  Input: {len(flat)}-element list")
+            ...     print(f"  Output: {array.shape} numpy array")
+            ...     print(f"  First few flat values: {flat[:5]}")
+            ...     print(f"  Corresponding array positions:")
+            ...     for i in range(5):
+            ...         row, col = i, 0  # First column
+            ...         print(f"    flat[{i}] = {flat[i]:.3f} → array[{row},{col}] = {array[row,col]:.3f}")
+            >>> 
+            >>> show_conversion_process(reader, 0)
+            >>> # Output:
+            >>> # Converting image 0:
+            >>> #   Input: 784-element list  
+            >>> #   Output: (28, 28) numpy array
+            >>> #   First few flat values: [0.0, 0.0, 0.0, 0.0, 0.0]
+            >>> #   Corresponding array positions:
+            >>> #     flat[0] = 0.000 → array[0,0] = 0.000
+            >>> #     flat[1] = 0.000 → array[1,0] = 0.000
+            >>> #     flat[2] = 0.000 → array[2,0] = 0.000
+            >>> #     flat[3] = 0.000 → array[3,0] = 0.000
+            >>> #     flat[4] = 0.000 → array[4,0] = 0.000
+            
+            >>> # MEMORY LAYOUT VISUALIZATION:
+            >>> def visualize_memory_layout(flat_data, rows=4, cols=4):
+            ...     print("Row-major flat:", flat_data[:rows*cols])
+            ...     print("Column-major 2D:")
+            ...     for r in range(rows):
+            ...         row_values = []
+            ...         for c in range(cols):
+            ...             idx = r + rows * c
+            ...             row_values.append(flat_data[idx])
+            ...         print(f"  Row {r}: {row_values}")
+            >>> 
+            >>> # Create simple test data
+            >>> test_flat = list(range(16))  # [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+            >>> visualize_memory_layout(test_flat, 4, 4)
+            >>> # Output:
+            >>> # Row-major flat: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            >>> # Column-major 2D:
+            >>> #   Row 0: [0, 4, 8, 12]
+            >>> #   Row 1: [1, 5, 9, 13] 
+            >>> #   Row 2: [2, 6, 10, 14]
+            >>> #   Row 3: [3, 7, 11, 15]
         """
         src = self.get_image_float(n)
         
@@ -991,8 +1210,121 @@ def create_synthetic_mnist_data(num_samples: int = 1000) -> Tuple[np.ndarray, np
     return images, labels
 
 
+def decode_idx_magic_number(magic: int) -> dict:
+    """
+    Decode and explain an IDX format magic number
+    
+    Takes a 4-byte magic number from an IDX file and breaks it down into
+    its component parts: data type and dimensionality. This is useful for
+    understanding and debugging IDX file formats.
+    
+    Args:
+        magic (int): 4-byte magic number from IDX file header
+        
+    Returns:
+        dict: Dictionary containing decoded information:
+            - 'magic': Original magic number
+            - 'magic_hex': Hexadecimal representation  
+            - 'valid': Whether this is a valid IDX magic number
+            - 'type_code': Data type byte (0x08 = uint8, etc.)
+            - 'dims_code': Dimension byte (0x01 = 1D, 0x03 = 3D, etc.)
+            - 'type_name': Human-readable data type name
+            - 'dims_name': Human-readable dimension description
+            - 'description': Full format description
+            
+    Sample Input/Output:
+        >>> # Decode MNIST labels magic number
+        >>> info = decode_idx_magic_number(2049)
+        >>> info['magic']             # Output: 2049
+        >>> info['magic_hex']         # Output: '0x00000801'
+        >>> info['valid']             # Output: True
+        >>> info['type_code']         # Output: 8
+        >>> info['dims_code']         # Output: 1  
+        >>> info['type_name']         # Output: 'unsigned byte (uint8)'
+        >>> info['dims_name']         # Output: '1D array (vector)'
+        >>> info['description']       # Output: 'IDX1: 1D array of unsigned bytes'
+        
+        >>> # Decode MNIST images magic number
+        >>> info = decode_idx_magic_number(2051)
+        >>> info['magic']             # Output: 2051
+        >>> info['magic_hex']         # Output: '0x00000803'
+        >>> info['valid']             # Output: True
+        >>> info['type_name']         # Output: 'unsigned byte (uint8)'
+        >>> info['dims_name']         # Output: '3D array (tensor)'
+        >>> info['description']       # Output: 'IDX3: 3D array of unsigned bytes'
+        
+        >>> # Invalid magic number
+        >>> info = decode_idx_magic_number(1234)
+        >>> info['valid']             # Output: False
+        >>> info['description']       # Output: 'Invalid IDX magic number'
+        
+        >>> # Print detailed breakdown
+        >>> def explain_magic(magic):
+        ...     info = decode_idx_magic_number(magic)
+        ...     print(f"Magic Number: {magic} ({info['magic_hex']})")
+        ...     if info['valid']:
+        ...         print(f"  Type: {info['type_name']}")
+        ...         print(f"  Dimensions: {info['dims_name']}")
+        ...         print(f"  Format: {info['description']}")
+        ...     else:
+        ...         print("  Invalid IDX format")
+        >>> 
+        >>> explain_magic(2049)
+        >>> # Output:
+        >>> # Magic Number: 2049 (0x00000801)
+        >>> #   Type: unsigned byte (uint8)
+        >>> #   Dimensions: 1D array (vector)
+        >>> #   Format: IDX1: 1D array of unsigned bytes
+    """
+    # Extract bytes from 32-bit magic number (big-endian)
+    byte0 = (magic >> 24) & 0xFF  # Should be 0x00
+    byte1 = (magic >> 16) & 0xFF  # Should be 0x00  
+    byte2 = (magic >> 8) & 0xFF   # Type code
+    byte3 = magic & 0xFF          # Dimensions code
+    
+    # Data type mapping
+    type_names = {
+        0x08: 'unsigned byte (uint8)',
+        0x09: 'signed byte (int8)',
+        0x0B: 'short (int16)', 
+        0x0C: 'int (int32)',
+        0x0D: 'float (float32)',
+        0x0E: 'double (float64)'
+    }
+    
+    # Dimension mapping
+    dims_names = {
+        0x01: '1D array (vector)',
+        0x02: '2D array (matrix)', 
+        0x03: '3D array (tensor)',
+        0x04: '4D array'
+    }
+    
+    # Check if this is a valid IDX magic number
+    valid = (byte0 == 0x00 and byte1 == 0x00 and 
+             byte2 in type_names and byte3 in dims_names)
+    
+    result = {
+        'magic': magic,
+        'magic_hex': f'0x{magic:08X}',
+        'valid': valid,
+        'type_code': byte2,
+        'dims_code': byte3,
+        'type_name': type_names.get(byte2, f'unknown type (0x{byte2:02X})'),
+        'dims_name': dims_names.get(byte3, f'unknown dimensions (0x{byte3:02X})')
+    }
+    
+    if valid:
+        idx_format = f"IDX{byte3}"
+        result['description'] = f"{idx_format}: {result['dims_name']} of {result['type_name']}"
+    else:
+        result['description'] = 'Invalid IDX magic number'
+    
+    return result
+
+
 # Export all public functions and classes
 __all__ = [
     'MNISTReader', 'download_mnist', 'download_emnist', 'create_synthetic_mnist_data',
-    '__version__'
+    'decode_idx_magic_number', '__version__'
 ]

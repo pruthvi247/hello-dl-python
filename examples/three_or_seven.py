@@ -884,10 +884,112 @@ def print_ascii_image(tensor, threshold=0.5):
     - Works with both individual images and computed averages
     - ASCII-safe output for terminal compatibility
     """
+  
+    """
+    🔍 HOW tensor.impl.assure_value() WORKS WHEN TMODE IS NOT EXPLICITLY SET:
+    
+    In print_ascii_image, we receive tensors that can have different modes depending 
+    on how they were created. Let's trace through the actual computation:
+    
+    CASE 1: Average Images (threes_avg, sevens_avg)
+    ===============================================
+    Creation in compute_average_images():
+    >>> threes = Tensor(28, 28)           # Creates TensorImpl with rows=28, cols=28
+    >>> threes.zero()                     # Calls TensorImpl.__init__(28, 28)
+    
+    What happens in TensorImpl.__init__():
+    - Since rows > 0 and cols > 0:
+      * self.val = np.zeros((28, 28), dtype=np.float32)  # Allocate memory
+      * self.have_val = True                             # Mark as computed
+      * self.mode = TMode.PARAMETER                      # Set mode automatically
+    
+    Later: threes.impl.val += img_tensor.impl.val       # Direct numpy manipulation
+    Result: threes.impl.mode = TMode.PARAMETER, values already computed
+    
+    When assure_value() is called:
+    >>> if self.have_val or self.mode == TMode.PARAMETER:
+    >>>     return  # EXIT IMMEDIATELY - no computation needed!
+    
+    CASE 2: Decision Vector (delta = sevens - threes)
+    ================================================
+    Creation through subtraction operator:
+    >>> delta = sevens - threes           # Calls sevens.__sub__(threes)
+    
+    What __sub__() does internally:
+    1. neg = Tensor()                     # Create empty tensor
+    2. neg.impl = TensorImpl(lhs=threes.impl, mode=TMode.NEG)  # Negation operation
+    3. return sevens + neg                # Addition operation
+    
+    This creates a computation graph:
+    sevens (TMode.PARAMETER) ──┐
+                               ├──> addition_op (TMode.ADDITION)
+    threes (TMode.PARAMETER) ──┘ neg_op (TMode.NEG)
+    
+    Result: delta.impl.mode = TMode.ADDITION, delta.impl.have_val = False
+    
+    When assure_value() is called:
+    >>> if self.have_val or self.mode == TMode.PARAMETER:
+    >>>     # FALSE - we have TMode.ADDITION and have_val=False
+    >>> elif self.mode == TMode.ADDITION:
+    >>>     if self.lhs is not None and self.rhs is not None:
+    >>>         self.lhs.assure_value()   # Compute sevens (already computed)
+    >>>         self.rhs.assure_value()   # Compute neg_op:
+    >>>                                   #   neg_op calls threes.assure_value()
+    >>>                                   #   neg_op.val = -threes.val
+    >>>         self.val = self.lhs.val + self.rhs.val  # sevens + (-threes)
+    
+    CASE 3: Operation Results (score_tensor = img.dot(delta).sum())
+    ==============================================================
+    This creates an even more complex computation graph:
+    img (TMode.PARAMETER) ──┐
+                            ├──> dot_prod_op (TMode.DOT_PROD) ──> sum_op (TMode.SUM)
+    delta (TMode.ADDITION) ─┘
+    
+    When assure_value() is called on sum_op:
+    1. sum_op.lhs.assure_value()          # Compute dot product
+    2. dot_prod_op.lhs.assure_value()     # Compute img (already done)
+    3. dot_prod_op.rhs.assure_value()     # Compute delta (ADDITION operation)
+    4. dot_prod_op.val = img.val @ delta.val   # Matrix multiplication
+    5. sum_op.val = dot_prod_op.val.sum()      # Sum all elements
+    
+    🎯 KEY INSIGHTS:
+    
+    1. AUTOMATIC MODE ASSIGNMENT: When you create Tensor(28, 28), it automatically
+       gets TMode.PARAMETER because rows > 0 and cols > 0 in the constructor.
+    
+    2. OPERATION MODES: When you use operators like -, +, dot(), sum(), new tensors
+       are created with appropriate operation modes (TMode.NEG, TMode.ADDITION, etc.)
+    
+    3. LAZY EVALUATION: Operations don't compute immediately. They build a computation
+       graph and compute values only when assure_value() is called.
+    
+    4. PARAMETER TENSORS SKIP COMPUTATION: If mode=TMode.PARAMETER and have_val=True,
+       assure_value() returns immediately without any computation.
+    
+    5. RECURSIVE DEPENDENCY RESOLUTION: For operation tensors, assure_value()
+       recursively computes all dependencies in the correct order.
+    
+    📊 PRACTICAL EXAMPLE IN THREE_OR_SEVEN:
+    
+    Average images (threes_avg, sevens_avg):
+    - Created as Tensor(28, 28) → TMode.PARAMETER
+    - Values set via direct numpy operations
+    - assure_value() does nothing (already computed)
+    
+    Decision vector (delta):
+    - Created via sevens - threes → TMode.ADDITION with computation graph
+    - assure_value() computes: sevens.val + (-threes.val)
+    - Result becomes available in delta.impl.val
+    
+    Both cases end up with img_array containing the actual pixel values ready
+    for ASCII visualization, regardless of how they were computed!
+    """
+    print(f"TRACE(print_ascii_image): Displaying ASCII image with threshold {tensor.impl.mode} and shape {tensor.shape}")
     tensor.impl.assure_value()
     img_array = tensor.impl.val
-    
     # Normalize to 0-1 range
+    # Why this is needed: The tensor might contain values in any range (negative, very large, etc.), but for ASCII visualization we need values between 0 and 1.
+    # Formula : normalized_value = (original_value - minimum_value) / (maximum_value - minimum_value)
     img_norm = (img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))
     
     print("   ASCII representation (■ = high intensity, □ = low intensity):")

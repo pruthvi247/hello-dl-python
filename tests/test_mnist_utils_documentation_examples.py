@@ -120,6 +120,7 @@ class TestMNISTUtilsDocumentationExamples(unittest.TestCase):
         # Test get_image() - raw uint8 values
         if num_images > 0:
             raw_img = self.reader.get_image(0)
+            # print(raw_img)
             self.assertIsInstance(raw_img, list)
             self.assertEqual(len(raw_img), 784)
             self.assertTrue(all(isinstance(pixel, int) for pixel in raw_img[:10]))
@@ -207,6 +208,129 @@ class TestMNISTUtilsDocumentationExamples(unittest.TestCase):
             self.assertTrue(np.all(img_array <= 1.0))
         
         print("✓ get_image_as_array() method examples passed")
+    
+    def test_get_image_as_array_comprehensive(self):
+        """Test comprehensive get_image_as_array() functionality and documentation examples"""
+        print("Testing comprehensive get_image_as_array() functionality...")
+        
+        if self.reader.get_num() > 0:
+            # Test basic functionality
+            img_array = self.reader.get_image_as_array(0)
+            
+            # Basic type and shape validation
+            self.assertIsInstance(img_array, np.ndarray)
+            self.assertEqual(img_array.shape, (28, 28))
+            self.assertEqual(img_array.dtype, np.float32)
+            
+            # Value range validation (normalized 0.0-1.0)
+            self.assertTrue(np.all(img_array >= 0.0))
+            self.assertTrue(np.all(img_array <= 1.0))
+            
+            # Test element access from documentation examples
+            # Array should be accessible with standard numpy indexing
+            top_left = img_array[0, 0]
+            center = img_array[14, 14] 
+            bottom_right = img_array[27, 27]
+            self.assertIsInstance(top_left, (float, np.float32))
+            self.assertIsInstance(center, (float, np.float32))
+            self.assertIsInstance(bottom_right, (float, np.float32))
+            
+            # Test consistency with get_image_float (column-major transformation)
+            flat_img = self.reader.get_image_float(0)
+            self.assertEqual(len(flat_img), 784)  # 28*28
+            
+            # Verify transformation: array[row,col] = flat[row + 28*col]
+            transformation_consistent = True
+            for row in range(28):
+                for col in range(28):
+                    flat_idx = row + 28 * col
+                    if abs(flat_img[flat_idx] - img_array[row, col]) > 1e-6:
+                        transformation_consistent = False
+                        break
+                if not transformation_consistent:
+                    break
+            
+            self.assertTrue(transformation_consistent, 
+                          "Array transformation should match: array[row,col] == flat[row + 28*col]")
+            
+            # Test specific examples from documentation
+            # Check first few positions for consistency
+            for row, col in [(0,0), (5,10), (14,14), (27,27)]:
+                flat_idx = row + 28 * col
+                if flat_idx < len(flat_img):
+                    self.assertAlmostEqual(
+                        float(img_array[row, col]), 
+                        float(flat_img[flat_idx]), 
+                        places=6,
+                        msg=f"Mismatch at position ({row},{col}) -> flat[{flat_idx}]"
+                    )
+            
+            # Test array statistics from documentation
+            mean_intensity = np.mean(img_array)
+            std_intensity = np.std(img_array)
+            non_zero_pixels = np.count_nonzero(img_array)
+            
+            # Validate statistical properties
+            self.assertIsInstance(mean_intensity, (float, np.float32, np.float64))
+            self.assertIsInstance(std_intensity, (float, np.float32, np.float64))
+            self.assertIsInstance(non_zero_pixels, (int, np.integer))
+            self.assertGreaterEqual(mean_intensity, 0.0)
+            self.assertLessEqual(mean_intensity, 1.0)
+            self.assertGreaterEqual(std_intensity, 0.0)
+            self.assertGreaterEqual(non_zero_pixels, 0)
+            self.assertLessEqual(non_zero_pixels, 784)
+            
+            # Test batch processing from documentation examples
+            if self.reader.get_num() >= 5:
+                batch_size = 5
+                batch_arrays = [self.reader.get_image_as_array(i) for i in range(batch_size)]
+                
+                # Validate batch creation
+                self.assertEqual(len(batch_arrays), batch_size)
+                self.assertTrue(all(isinstance(arr, np.ndarray) for arr in batch_arrays))
+                self.assertTrue(all(arr.shape == (28, 28) for arr in batch_arrays))
+                self.assertTrue(all(arr.dtype == np.float32 for arr in batch_arrays))
+                
+                # Test stacking for CNN-style processing
+                batch_stack = np.stack(batch_arrays)
+                self.assertEqual(batch_stack.shape, (batch_size, 28, 28))
+                self.assertEqual(batch_stack.dtype, np.float32)
+            
+            # Test channel dimension expansion for CNN (documentation example)
+            img_with_channel = np.expand_dims(img_array, axis=-1)
+            self.assertEqual(img_with_channel.shape, (28, 28, 1))
+            
+            # Test array transformations from documentation
+            rotated = np.rot90(img_array)
+            self.assertEqual(rotated.shape, (28, 28))
+            
+            flipped = np.flipud(img_array)
+            self.assertEqual(flipped.shape, (28, 28))
+            
+            transposed = img_array.T
+            self.assertEqual(transposed.shape, (28, 28))
+            
+            # Test multiple images to ensure consistency
+            if self.reader.get_num() >= 3:
+                for img_idx in range(3):
+                    test_array = self.reader.get_image_as_array(img_idx)
+                    test_flat = self.reader.get_image_float(img_idx)
+                    
+                    # Verify transformation consistency for each image
+                    for row in range(0, 28, 7):  # Sample every 7th row for efficiency
+                        for col in range(0, 28, 7):  # Sample every 7th col
+                            flat_idx = row + 28 * col
+                            self.assertAlmostEqual(
+                                float(test_array[row, col]), 
+                                float(test_flat[flat_idx]), 
+                                places=6
+                            )
+        
+        # Test error handling
+        with self.assertRaises(IndexError):
+            self.reader.get_image_as_array(self.reader.get_num())  # Out of range
+        
+        print("✓ Comprehensive get_image_as_array() functionality passed")
     
     def test_batch_processing_methods(self):
         """Test get_batch() and get_batch_tensors() documentation examples"""
@@ -304,6 +428,87 @@ class TestMNISTUtilsDocumentationExamples(unittest.TestCase):
         np.testing.assert_array_equal(labels, expected_labels)
         
         print("✓ Synthetic data creation examples passed")
+    
+    def test_convert_all_images_method(self):
+        """Test _convert_all_images() documentation examples and functionality"""
+        print("Testing _convert_all_images() method examples...")
+        
+        # Test that conversion was called during initialization
+        self.assertIsInstance(self.reader.converted, dict)
+        self.assertEqual(len(self.reader.converted), self.reader.get_num())
+        
+        if self.reader.get_num() > 0:
+            # Test that all images are cached in converted dictionary
+            for img_idx in range(min(5, self.reader.get_num())):  # Test first 5 images
+                self.assertIn(img_idx, self.reader.converted)
+                converted_img = self.reader.converted[img_idx]
+                
+                # Test converted image properties
+                self.assertIsInstance(converted_img, list)
+                self.assertEqual(len(converted_img), 784)  # 28*28 pixels
+                
+                # Test all pixels are floats in range [0.0, 1.0]
+                for pixel in converted_img:
+                    self.assertIsInstance(pixel, float)
+                    self.assertGreaterEqual(pixel, 0.0)
+                    self.assertLessEqual(pixel, 1.0)
+            
+            # Test normalization accuracy: raw[i]/255.0 should equal converted[i]
+            raw_img = self.reader.get_image(0)
+            converted_img = self.reader.converted[0]
+            
+            self.assertEqual(len(raw_img), len(converted_img))
+            
+            # Verify normalization formula: pixel_value / 255.0
+            for i in range(len(raw_img)):
+                expected_normalized = raw_img[i] / 255.0
+                actual_normalized = converted_img[i]
+                self.assertAlmostEqual(expected_normalized, actual_normalized, places=6)
+            
+            # Test specific pixel value transformations from documentation
+            # Find pixels with different values to test edge cases
+            unique_values = set(raw_img[:100])  # Check first 100 pixels
+            for raw_value in list(unique_values)[:5]:  # Test up to 5 different values
+                # Find first occurrence of this value
+                pixel_index = raw_img.index(raw_value)
+                expected = raw_value / 255.0
+                actual = converted_img[pixel_index]
+                self.assertAlmostEqual(expected, actual, places=6)
+                
+                # Test specific cases mentioned in documentation
+                if raw_value == 255:  # White pixel
+                    self.assertAlmostEqual(actual, 1.0, places=6)
+                elif raw_value == 0:  # Black pixel
+                    self.assertAlmostEqual(actual, 0.0, places=6)
+                elif raw_value == 128:  # Gray pixel (approximately)
+                    self.assertAlmostEqual(actual, 128/255.0, places=6)
+                    self.assertAlmostEqual(actual, 0.502, places=3)  # As in documentation
+            
+            # Test that get_image_float() returns the same as converted cache
+            for img_idx in range(min(3, self.reader.get_num())):
+                float_img_method = self.reader.get_image_float(img_idx)
+                cached_img = self.reader.converted[img_idx]
+                
+                self.assertEqual(len(float_img_method), len(cached_img))
+                for i in range(len(float_img_method)):
+                    self.assertAlmostEqual(float_img_method[i], cached_img[i], places=6)
+        
+        # Test memory efficiency: converted dict should exist and be accessible
+        import sys
+        if self.reader.get_num() > 0:
+            raw_size = sys.getsizeof(self.reader.images)
+            converted_size = sys.getsizeof(self.reader.converted)
+            print(f"Raw images size: {raw_size} bytes")
+            # print(f"{type(self.reader.converted)} ")
+            # print(f"{len(self.reader.converted)} converted images size: {converted_size} bytes")
+            # print(f"lenght of keys in converted: {len(self.reader.converted.keys())}")
+            # print(f"First 10 key in converted: {list(self.reader.converted.keys())[:10]}")
+            # print(f"First converted image sample (first 10 pixels): {self.reader.converted[0][:10]}")
+            # Both should be reasonable sizes (not testing exact sizes due to variability)
+            self.assertGreater(raw_size, 0)
+            self.assertGreater(converted_size, 0)
+        
+        print("✓ _convert_all_images() method examples passed")
     
     def test_edge_cases_and_error_handling(self):
         """Test edge cases and error conditions"""
