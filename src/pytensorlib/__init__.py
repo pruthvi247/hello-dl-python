@@ -141,7 +141,7 @@ def quick_test():
         x.constant(3.0)
         y = square(x)
         y.backward()
-        print(f"   d/dx(x²) at x=3: {x.impl.grads[0,0]} (expected: 6.0) ✓")
+        print(f"   d/dx(x²) at x=3: {x.impl.grads[0,0]} (expected: 6.0) ✓") # type: ignore
         
         print("\n✅ All tests passed! PyTensorLib is ready to use.")
         return True
