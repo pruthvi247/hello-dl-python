@@ -113,6 +113,20 @@ class DetailedCNNParallelismDemo:
         print(f"   Kernels shape: {kernels.shape}")
         print(f"   Output shape will be: (26, 26, 32)")
         print(f"   Workers: {self.num_workers}")
+
+        """
+        Given Convolution Setup:
+        Input shape: (28, 28) — This means the input image is 28 pixels high and 28 pixels wide (grayscale, so single channel assumed).
+
+        Kernels shape: (32, 1, 3, 3)
+
+        32: Number of filters (output channels)
+        1: Number of input channels (grayscale image)
+        3: Kernel height
+        3: Kernel width
+
+        Output shape: (26, 26, 32) — Output height 26, width 26, and 32 channels (one per kernel)."""
+
         
         # Distribute work: Each worker handles different output channels
         channels_per_worker = 32 // self.num_workers
@@ -140,8 +154,7 @@ class DetailedCNNParallelismDemo:
                 for i in range(26):  # Output height
                     for j in range(26):  # Output width
                         # Extract 3×3 patch from input
-                        patch = image[i:i+3, j:j+3]
-                        
+                        patch = image[i:i+3, j:j+3]                        
                         # Convolution operation: element-wise multiply and sum
                         conv_result = np.sum(patch * kernel)
                         output[i, j, out_ch] = conv_result
@@ -201,6 +214,7 @@ class DetailedCNNParallelismDemo:
             print(row)
         
         # Track layer distribution
+        #  Run explanations/parallelism/print_layer_distribution.py to see example output
         layer_dist = LayerDistribution(
             layer_name="Conv1",
             input_shape=image.shape,

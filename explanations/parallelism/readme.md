@@ -1,3 +1,10 @@
+🚀 How to Use:
+Start with theory: Read CNN_PARALLELISM_DEEP_GUIDE.md
+See it in action: Run step_by_step_cnn_parallelism.py
+Visualize the concepts: Execute memory_layout_visualization.py
+Get complete performance data: Run cnn_parallelism_complete_demo.py
+This comprehensive resource provides everything needed to understand CNN parallelism from basic concepts to detailed implementation with concrete, measurable examples using your specified 28×28 image matrix!
+
 📚 Complete Parallelism Learning Suite
 
 1. Comprehensive Guide

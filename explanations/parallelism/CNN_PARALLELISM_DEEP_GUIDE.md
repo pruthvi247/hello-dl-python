@@ -2,6 +2,8 @@
 
 _The Complete Guide to Understanding Parallelism in Convolutional Neural Networks_
 
+Follow/Run : explanations/parallelism/step_by_step_cnn_parallelism.py
+
 ## 📚 Table of Contents
 
 1. [Introduction to CNN Parallelism](#introduction)
@@ -63,6 +65,101 @@ Linear3: 256→26 (for letters A-Z)
     ↓
 LogSoftMax → Final probabilities
 ```
+
+# 🧮 1. Formula for Spatial Dimensions (Height × Width)
+
+For a convolution layer:
+
+$$
+O = \frac{(I - K + 2P)}{S} + 1
+$$
+
+Where:
+
+- `I` = input size (height or width, assume square for simplicity)
+- `K` = kernel size (e.g., 3 for a 3×3 kernel)
+- `P` = padding (0 if “valid”, >0 if “same”)
+- `S` = stride (default = 1)
+  For pooling layers, the **same formula** applies (just use pooling kernel and stride).
+
+---
+
+# 🧮 2. Formula for Channels
+
+👉 Channels **do not come from the formula**. They’re **chosen by you** when defining the conv layer.
+
+- Input image: has $$C_\text{in}$$4channels (1 for grayscale, 3 for RGB).
+- Conv layer: you specify $$C_\text{out}$$.
+- After convolution: output depth = $$C_\text{out}$$.
+  So:
+  $$
+  \text{#Channels after Conv} = C_\text{out (chosen in conv layer)}
+  $$
+  Pooling layers **do not change the channel count** — they only reduce height & width.
+
+---
+
+# ✅ Apply to Your Pipeline
+
+### **Step 1. Input**
+
+Shape:
+28 × 28 × 1
+
+---
+
+### **Step 2. Conv1 (3×3 kernel, 1→32 channels, stride=1, padding=0)**
+
+$$
+O = \frac{(28 - 3 + 0)}{1} + 1 = 26
+$$
+
+## Shape: 26×26×32 ✅
+
+### **Step 3. MaxPool (2×2, stride=2)**
+
+$$
+O = \frac{(26 - 2)}{2} + 1 = 13
+$$
+
+Shape: 13×13×32 ✅
+(_channels unchanged_)
+
+---
+
+### **Step 4. GELU**
+
+- Activation function → shape stays the same.
+  Shape: $13×13×32$ ✅
+
+---
+
+### **Step 5. Conv2 (3×3 kernel, 32→64 channels, stride=1, padding=0)**
+
+$$
+O = \frac{(13 - 3 + 0)}{1} + 1 = 11
+$$
+
+## Shape: 11×11×64 ✅
+
+# 📝 Rules of Thumb
+
+- **Convolution changes both size & channels** (depending on stride, padding, and chosen filters).
+- **Pooling changes size but not channels**.
+- **Activation functions (ReLU, GELU, etc.) don’t change size or channels**.
+
+##### 📝 Example Recap from Your Network
+
+Input: 28×28×1
+Conv1 (3×3): 26×26×32 ← spatial dimension shrinks from 28→26
+MaxPool (2×2): 13×13×32 ← halves spatial dimension
+Conv2 (3×3): 11×11×64 ← shrinks 13→11
+
+Here:
+Spatial dimension = height × width (28×28 → 26×26 → 13×13 → 11×11).
+Channels (depth) = controlled by conv layer output filters (1 → 32 → 64).
+
+---
 
 ### Memory Layout and Data Flow:
 

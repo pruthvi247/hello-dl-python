@@ -56,7 +56,7 @@ class MatrixVisualizationHelper:
         # Split matrix visualization
         if split_type == "rows":
             chunk_size = rows // num_chunks
-            colors = plt.cm.Set3(np.linspace(0, 1, num_chunks))
+            colors = plt.cm.tab10(np.linspace(0, 1, num_chunks))
             
             # Create split visualization
             split_matrix = np.zeros_like(matrix)
@@ -65,7 +65,7 @@ class MatrixVisualizationHelper:
                 end_row = min((i + 1) * chunk_size, rows)
                 split_matrix[start_row:end_row, :] = i + 1
             
-            im2 = ax2.imshow(split_matrix, cmap='Set3', aspect='auto', vmin=0, vmax=num_chunks)
+            im2 = ax2.imshow(split_matrix, cmap='tab10', aspect='auto', vmin=0, vmax=num_chunks)
             ax2.set_title(f'Split into {num_chunks} Row Chunks')
             
             # Add chunk labels and boundaries
