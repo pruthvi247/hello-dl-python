@@ -2,10 +2,13 @@
 
 A Deep Learning Framework in Python with Automatic Differentiation
 
+[source-berthub-hello-dl-blog](https://berthub.eu/articles/posts/first-learning/)
+[source-code-git](https://github.com/berthubert/hello-dl/tree/main)
+
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-PyTensorLib is a lightweight deep learning framework implemented in pure Python with NumPy. It provides automatic differentiation, tensor operations, and common neural network components.
+We created a PyTensorLib is a lightweight deep learning framework implemented in pure Python with NumPy. It provides automatic differentiation, tensor operations, and common neural network components.
 
 ## ✨ Features
 
